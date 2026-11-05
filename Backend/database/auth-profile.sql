@@ -1,0 +1,25 @@
+CREATE TABLE IF NOT EXISTS users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+
+    phone VARCHAR(10) NOT NULL UNIQUE,
+
+    name VARCHAR(100),
+
+    role ENUM('employee', 'kitchen') DEFAULT 'employee',
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS otp_codes (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+
+    phone VARCHAR(10) NOT NULL,
+
+    code VARCHAR(4) NOT NULL,
+
+    expires_at DATETIME NOT NULL,
+
+    attempts INT DEFAULT 0,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
