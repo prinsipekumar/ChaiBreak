@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth.routes";
+import orderRoutes from "./routes/order.routes";
 
 const app = express();
 
@@ -17,5 +18,6 @@ app.get("/chai", (_req, res) => {
 });
 
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/orders", orderRoutes);
 
 export default app;
