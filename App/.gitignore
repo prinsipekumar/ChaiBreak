@@ -1,8 +1,87 @@
-node_modules/
-build/
-dist/
-coverage/
+# OS Files
 .DS_Store
-*.log
-.env*
+Thumbs.db
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment Files
+.env
+.env.local
+.env.development
+.env.production
+
+# Keep example files
 !.env.example
+
+# React Native / Metro
+.metro-health-check*
+*.jsbundle
+# React Native
+.bundle/
+
+# Testing
+coverage/
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+
+.gradle
+.cxx/
+.kotlin/
+
+local.properties
+
+*.keystore
+!debug.keystore
+
+# iOS
+ios/build/
+ios/Pods/
+
+build/
+DerivedData/
+
+*.pbxuser
+!default.pbxuser
+
+*.mode1v3
+!default.mode1v3
+
+*.mode2v3
+!default.mode2v3
+
+*.perspectivev3
+!default.perspectivev3
+
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+
+xcuserdata/
+**/.xcode.env.local
+
+# Fastlane
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots
+**/fastlane/test_output
+
+# Ruby / CocoaPods
+/vendor/bundle/
+**/Pods/
+
+# IDEs
+.vscode/
+.idea/
+
+*.iml
+
+# Temporary Files
+*.tmp
+*.temp
