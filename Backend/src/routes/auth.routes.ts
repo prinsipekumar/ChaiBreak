@@ -1,20 +1,51 @@
 import { Router } from "express";
-import { requestOtp } from "../controllers/auth.controller";
+import { body } from "express-validator";
 import {
-  sendOTPValidation,
-  aliasPhoneField,
-  validateRequest,
-} from "../validators/auth.validator";
+  requestOtpController,
+  verifyOtpController,
+} from "../controllers/auth.controller";
+import { validateResult } from "../middlewares/validation.middleware";
 
 const router = Router();
 
-// Route: POST /api/v1/auth/request-otp
+// POST /api/v1/auth/request-otp
 router.post(
   "/request-otp",
-  aliasPhoneField,
-  sendOTPValidation,
-  validateRequest,
-  requestOtp,
+  [
+    body("phone")
+      .trim()
+      .notEmpty()
+      .withMessage("Phone number is required.")
+      .matches(/^[6-9]\d{9}$/)
+      .withMessage(
+        "Phone number must be exactly 10 digits and start with a number from 6 to 9.",
+      ),
+    validateResult,
+  ],
+  requestOtpController,
+);
+
+// POST /api/v1/auth/verify-otp
+router.post(
+  "/verify-otp",
+  [
+    body("phone")
+      .trim()
+      .notEmpty()
+      .withMessage("Phone number is required.")
+      .matches(/^[6-9]\d{9}$/)
+      .withMessage(
+        "Phone number must be exactly 10 digits and start with a number from 6 to 9.",
+      ),
+    body("code")
+      .trim()
+      .notEmpty()
+      .withMessage("OTP verification code is required.")
+      .isLength({ min: 4, max: 4 })
+      .withMessage("OTP must be exactly 4 digits."),
+    validateResult,
+  ],
+  verifyOtpController,
 );
 
 export default router;

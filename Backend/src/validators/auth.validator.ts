@@ -58,6 +58,20 @@ export const sendOTPValidation = [
     .withMessage("Invalid SMS verification hash"),
 ];
 
+// Added verification validator array mapping strict project specification rules
+export const verifyOTPValidation = [
+  authPhone(),
+  body("code")
+    .exists({ checkFalsy: true })
+    .withMessage("Verification code is required")
+    .isString()
+    .withMessage("Verification code must be a string")
+    .isLength({ min: 4, max: 4 })
+    .withMessage("Verification code must be exactly 4 digits")
+    .isNumeric()
+    .withMessage("Verification code must contain only numbers"),
+];
+
 export const validateRequest = (
   req: Request,
   res: Response,
