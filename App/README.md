@@ -183,8 +183,8 @@ Also confirm the backend server is running.
 Verify the backend terminal displays:
 
 ```txt
-OTP Request for: XX******XX
-Generated OTP:  XXXX
+OTP Request for xxxxxxxxxx: xxxx
+Code Valid until: xx:xx:xx AM/PM
 ```
 
 Use that OTP on the verification screen.
