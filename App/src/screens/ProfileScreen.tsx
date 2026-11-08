@@ -12,16 +12,35 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { API_URL } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
-const API_BASE_URL = 'http://localhost:5000/api/v1';
+const PROFILE_CACHE_KEY = 'profile-cache';
 
 interface UserProfile {
   id: number;
   phone: string;
   name: string | null;
   role: 'employee' | 'kitchen';
+}
+
+async function readCachedProfile(): Promise<UserProfile | null> {
+  try {
+    const raw = await AsyncStorage.getItem(PROFILE_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as UserProfile) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeCachedProfile(profile: UserProfile): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+  } catch {
+    // A cache write failure should never block the live profile.
+  }
 }
 
 export default function ProfileScreen() {
@@ -35,29 +54,61 @@ export default function ProfileScreen() {
     'Content-Type': 'application/json',
   };
 
-  // 1. GET /me
+  // 1. GET /me — falls back to the cached profile when the backend is offline.
   const {
     data: profile,
     isLoading,
     isError,
+    isFetching,
     refetch,
   } = useQuery<UserProfile>({
     queryKey: ['profile', token],
     enabled: !!token,
     queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/me`, { headers: fetchHeaders });
+      try {
+        const res = await fetch(`${API_URL}/me`, { headers: fetchHeaders });
 
-      if (res.status === 401) {
-        logout();
-        throw new Error('Session expired');
+        if (res.status === 401) {
+          logout();
+          throw new Error('Session expired');
+        }
+
+        if (!res.ok) {
+          throw new Error(`Profile request failed (${res.status}).`);
+        }
+
+        const result = await res.json();
+
+        if (!result.success || !result.data) {
+          throw new Error(result.message || 'Failed to load profile.');
+        }
+
+        const nextProfile = result.data as UserProfile;
+        await writeCachedProfile(nextProfile);
+        return nextProfile;
+      } catch (error) {
+        if (error instanceof Error && error.message === 'Session expired') {
+          throw error;
+        }
+
+        const cachedProfile = await readCachedProfile();
+        if (cachedProfile) {
+          return cachedProfile;
+        }
+
+        // The auth store is persisted too, so it is a valid last-resort cache.
+        const authUser = useAuthStore.getState().user;
+        if (authUser) {
+          return {
+            id: authUser.id,
+            phone: authUser.phone,
+            name: authUser.name || null,
+            role: authUser.role === 'kitchen' ? 'kitchen' : 'employee',
+          };
+        }
+
+        throw error;
       }
-
-      const result = await res.json();
-
-      if (result.success && result.data) {
-        return result.data;
-      }
-      throw new Error(result.message || 'Failed to load profile.');
     },
   });
 
@@ -70,7 +121,7 @@ export default function ProfileScreen() {
   // 2. PATCH /me
   const updateMutation = useMutation({
     mutationFn: async (newName: string) => {
-      const res = await fetch(`${API_BASE_URL}/me`, {
+      const res = await fetch(`${API_URL}/me`, {
         method: 'PATCH',
         headers: fetchHeaders,
         body: JSON.stringify({ name: newName }),
@@ -79,6 +130,9 @@ export default function ProfileScreen() {
     },
     onSuccess: result => {
       if (result.success) {
+        if (result.data) {
+          writeCachedProfile(result.data as UserProfile);
+        }
         Alert.alert('Profile Saved', 'Display name updated successfully.');
         queryClient.invalidateQueries({ queryKey: ['profile'] });
       } else {
@@ -109,23 +163,38 @@ export default function ProfileScreen() {
   if (isError || !profile) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>Profile Sync Interrupted</Text>
-        <Text style={styles.debugText}>
-          Token Length: {token ? token.length : 0} chars
+        <View style={styles.errorIconWrap}>
+          <Text style={styles.errorIcon}>☕</Text>
+        </View>
+        <Text style={styles.errorTitle}>Profile unavailable</Text>
+        <Text style={styles.errorMessage}>
+          We couldn't load your profile right now. Check your connection and try
+          again.
         </Text>
 
-        <TouchableOpacity style={styles.btnRetry} onPress={() => refetch()}>
-          <Text style={styles.btnRetryText}>Retry Connection</Text>
+        <TouchableOpacity
+          style={[styles.btnRetry, isFetching && styles.btnDisabled]}
+          onPress={() => refetch()}
+          disabled={isFetching}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading profile"
+        >
+          {isFetching ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.btnRetryText}>Retry</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.forceLogoutWrapper}
-          onPress={() => {
-            logout();
-            Alert.alert('Session Cleared', 'Please log in fresh.');
-          }}
+          style={styles.btnLogout}
+          onPress={logout}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Logout"
         >
-          <Text style={styles.forceLogoutText}>Return to Login Screen</Text>
+          <Text style={styles.btnLogoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
     );
@@ -292,30 +361,54 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  errorText: {
-    fontSize: 18,
-    color: '#E74C3C',
-    fontWeight: '700',
-    marginBottom: 4,
+  errorIconWrap: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3EBE4',
+    marginBottom: 18,
   },
-  debugText: {
-    fontSize: 12,
-    color: '#A0A0A0',
-    marginBottom: 16,
+  errorIcon: { fontSize: 34 },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#3E2723',
+    marginBottom: 8,
+    letterSpacing: -0.2,
+  },
+  errorMessage: {
+    maxWidth: 280,
+    textAlign: 'center',
+    fontSize: 13.5,
+    lineHeight: 21,
     fontWeight: '500',
+    color: '#8A8A8A',
+    marginBottom: 26,
   },
   btnRetry: {
-    backgroundColor: '#6F4E37',
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 10,
+    height: 50,
+    width: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#8D6E63',
+    borderRadius: 12,
   },
-  btnRetryText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
-  forceLogoutWrapper: { marginTop: 20, padding: 8 },
-  forceLogoutText: {
+  btnRetryText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  btnLogout: {
+    marginTop: 12,
+    height: 50,
+    width: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E74C3C',
+  },
+  btnLogoutText: {
     color: '#E74C3C',
-    textDecorationLine: 'underline',
-    fontWeight: '600',
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

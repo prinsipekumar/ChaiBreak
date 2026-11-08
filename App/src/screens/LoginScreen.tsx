@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { API_URL } from '../services/api';
 import { requestOtp, verifyOtp } from '../services/auth.service';
 import { useAuthStore } from '../store/authStore';
 
@@ -48,7 +49,10 @@ export default function LoginScreen() {
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('Network Error', 'Could not connect to the backend server.');
+      Alert.alert(
+        'Network Error',
+        `Could not reach the backend at ${API_URL}. Make sure the server is running.`,
+      );
     } finally {
       setLoading(false);
     }
