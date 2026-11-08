@@ -9,7 +9,11 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import BottomNav, {
+  type BottomTab,
+} from './src/features/menu/components/BottomNav';
 import LoginScreen from './src/screens/LoginScreen';
+import MenuScreen from './src/screens/MenuScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import { useAuthStore } from './src/store/authStore';
 
@@ -44,16 +48,14 @@ const KitchenDashboard = () => {
   );
 };
 
-// Placeholder for F2 Menu items
-const MenuPlaceholder = () => (
-  <View style={styles.menuPlaceholder}>
-    <Text style={styles.placeholderIcon}>☕</Text>
-    <Text style={styles.placeholderTitle}>Canteen Snacks Menu</Text>
-  </View>
-);
-
 const EmployeePortal = () => {
-  const [activeTopTab, setActiveTab] = useState<'menu' | 'profile'>('profile');
+  const [activeTopTab, setActiveTab] = useState<'menu' | 'profile'>('menu');
+
+  const handleBottomNav = (tab: BottomTab) => {
+    if (tab === 'menu' || tab === 'profile') {
+      setActiveTab(tab);
+    }
+  };
 
   return (
     <View style={styles.portalContainer}>
@@ -104,8 +106,14 @@ const EmployeePortal = () => {
 
       {/* Dynamic View Injection Layer */}
       <View style={styles.mainContent}>
-        {activeTopTab === 'profile' ? <ProfileScreen /> : <MenuPlaceholder />}
+        {activeTopTab === 'profile' ? <ProfileScreen /> : <MenuScreen />}
       </View>
+
+      <BottomNav
+        activeTab={activeTopTab}
+        cartCount={2}
+        onSelect={handleBottomNav}
+      />
     </View>
   );
 };
@@ -123,7 +131,7 @@ export default function App() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-          <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+          <StatusBar barStyle="dark-content" />
           <NavigationHub />
         </SafeAreaView>
       </QueryClientProvider>
@@ -132,8 +140,8 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  portalContainer: { flex: 1, backgroundColor: '#F7F4F0' },
+  container: { flex: 1, backgroundColor: '#FAF7F2' },
+  portalContainer: { flex: 1, backgroundColor: '#FAF7F2' },
   topHeader: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
@@ -143,12 +151,12 @@ const styles = StyleSheet.create({
   brandText: {
     fontSize: 26,
     fontWeight: '900',
-    color: '#6F4E37',
+    color: '#6D4C41',
     letterSpacing: -0.5,
   },
   deliveryTag: {
     fontSize: 12,
-    color: '#8A8A8A',
+    color: '#8D8D8D',
     fontWeight: '600',
     marginTop: 2,
     letterSpacing: 0.2,
@@ -157,7 +165,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1.5,
-    borderBottomColor: '#F7F4F0',
+    borderBottomColor: '#F0E9E2',
     paddingHorizontal: 12,
   },
   topTabButton: {
@@ -167,37 +175,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',
   },
-  activeTopTabButton: { borderBottomColor: '#6F4E37' },
-  topTabText: { fontSize: 14, fontWeight: '600', color: '#A0A0A0' },
-  activeTopTabText: { color: '#6F4E37', fontWeight: '800' },
+  activeTopTabButton: { borderBottomColor: '#8D6E63' },
+  topTabText: { fontSize: 14, fontWeight: '600', color: '#8D8D8D' },
+  activeTopTabText: { color: '#6D4C41', fontWeight: '800' },
   mainContent: { flex: 1 },
-  menuPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    margin: 20,
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: '#6F4E37',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  placeholderIcon: { fontSize: 64, marginBottom: 12 },
-  placeholderTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#2B2B2B',
-    marginBottom: 6,
-  },
-  placeholderSub: {
-    fontSize: 13,
-    color: '#8A8A8A',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
   kitchenContainer: {
     flex: 1,
     justifyContent: 'center',
