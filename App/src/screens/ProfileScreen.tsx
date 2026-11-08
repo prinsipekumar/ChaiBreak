@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -48,6 +49,7 @@ export default function ProfileScreen() {
   const logout = useAuthStore(state => state.logout);
   const queryClient = useQueryClient();
   const [nameInput, setNameInput] = useState('');
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false); //smooth animation
 
   const fetchHeaders = {
     Authorization: `Bearer ${token}`,
@@ -96,7 +98,6 @@ export default function ProfileScreen() {
           return cachedProfile;
         }
 
-        // The auth store is persisted too, so it is a valid last-resort cache.
         const authUser = useAuthStore.getState().user;
         if (authUser) {
           return {
@@ -117,6 +118,18 @@ export default function ProfileScreen() {
       setNameInput(profile.name);
     }
   }, [profile]);
+
+  //smooth refresh handler
+  const handleRefresh = useCallback(() => {
+    if (isManualRefreshing) return;
+
+    setIsManualRefreshing(true);
+    refetch().finally(() => {
+      setTimeout(() => {
+        setIsManualRefreshing(false);
+      }, 600);
+    });
+  }, [isManualRefreshing, refetch]);
 
   // 2. PATCH /me
   const updateMutation = useMutation({
@@ -177,8 +190,6 @@ export default function ProfileScreen() {
           onPress={() => refetch()}
           disabled={isFetching}
           activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="Retry loading profile"
         >
           {isFetching ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
@@ -191,8 +202,6 @@ export default function ProfileScreen() {
           style={styles.btnLogout}
           onPress={logout}
           activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="Logout"
         >
           <Text style={styles.btnLogoutText}>Logout</Text>
         </TouchableOpacity>
@@ -206,7 +215,19 @@ export default function ProfileScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flexContainer}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={isManualRefreshing} //hooked tonew smooth state
+              onRefresh={handleRefresh}
+              tintColor="#6F4E37"
+              colors={['#6F4E37']}
+              progressBackgroundColor="#FFFFFF"
+            />
+          }
+        >
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Account Profile</Text>
 
@@ -219,13 +240,14 @@ export default function ProfileScreen() {
               <Text style={styles.fieldLabel}>Canteen Role</Text>
               <Text
                 style={[
+                  styles.fieldValue,
                   styles.roleValue,
                   profile.role === 'kitchen'
                     ? styles.roleKitchen
                     : styles.roleEmployee,
                 ]}
               >
-                {profile.role?.toUpperCase()}
+                {profile.role ? profile.role.toUpperCase() : 'EMPLOYEE'}
               </Text>
             </View>
 
@@ -316,8 +338,8 @@ const styles = StyleSheet.create({
   },
   fieldValue: { fontSize: 16, color: '#2B2B2B', fontWeight: '600' },
   roleValue: { fontSize: 14, fontWeight: '700' },
-  roleKitchen: { color: '#D97706' }, // Amber warning color for production workspace access
-  roleEmployee: { color: '#6F4E37' }, // Standard coffee tone theme
+  roleKitchen: { color: '#D97706' },
+  roleEmployee: { color: '#6F4E37' },
   inputContainer: { marginTop: 4, marginBottom: 28 },
   textInput: {
     borderWidth: 1.5,

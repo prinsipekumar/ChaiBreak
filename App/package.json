@@ -23,6 +23,7 @@
     "react": "19.3.0",
     "react-hook-form": "^7.91.0",
     "react-native": "0.88.1",
+    "react-native-async-storage": "^0.0.1",
     "react-native-config": "^1.7.2",
     "react-native-device-info": "^15.0.2",
     "react-native-gesture-handler": "^3.5.0",
