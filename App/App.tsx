@@ -5,6 +5,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -121,7 +122,18 @@ const EmployeePortal = () => {
 const NavigationHub = () => {
   const token = useAuthStore(state => state.token);
   const user = useAuthStore(state => state.user);
+  const isRestoringToken = useAuthStore(state => state.isRestoringToken);
 
+  // 1. Hold navigation thread with a clean placeholder while local storage loads
+  if (isRestoringToken) {
+    return (
+      <View style={styles.restoreContainer}>
+        <ActivityIndicator size="large" color="#6D4C41" />
+      </View>
+    );
+  }
+
+  // 2. Storage loaded successfully - immediately forward to correct dashboard layout view
   if (!token) return <LoginScreen />;
   return user?.role === 'kitchen' ? <KitchenDashboard /> : <EmployeePortal />;
 };
@@ -131,7 +143,7 @@ export default function App() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-          <StatusBar barStyle="dark-content" />
+          <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
           <NavigationHub />
         </SafeAreaView>
       </QueryClientProvider>
@@ -142,6 +154,12 @@ export default function App() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF7F2' },
   portalContainer: { flex: 1, backgroundColor: '#FAF7F2' },
+  restoreContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FAF7F2',
+  },
   topHeader: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
