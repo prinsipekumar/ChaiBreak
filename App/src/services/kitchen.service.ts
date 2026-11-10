@@ -58,6 +58,11 @@ export const advanceOrder = async (
   return response.data.data as { id: number; status: string };
 };
 
+export const pickupOrder = async (orderId: number, code: string) => {
+  const response = await kitchenApi.post(`/orders/${orderId}/pickup`, { code });
+  return response.data.data as { id: number; status: string };
+};
+
 // Turns an axios/network error into a message that is fine to show in an Alert.
 export const getErrorMessage = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
