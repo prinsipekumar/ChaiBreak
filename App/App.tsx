@@ -15,6 +15,8 @@ import BottomNav, {
 } from './src/features/menu/components/BottomNav';
 import LoginScreen from './src/screens/LoginScreen';
 import MenuScreen from './src/screens/MenuScreen';
+import MyOrdersScreen from './src/screens/MyOrdersScreen';
+import OrderDetailsScreen from './src/screens/OrderDetailsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import { useAuthStore } from './src/store/authStore';
 
@@ -50,11 +52,19 @@ const KitchenDashboard = () => {
 };
 
 const EmployeePortal = () => {
-  const [activeTopTab, setActiveTab] = useState<'menu' | 'profile'>('menu');
+  const [activeTopTab, setActiveTab] = useState<
+    'menu' | 'orders' | 'profile'
+  >('menu');
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+
+  const selectTab = (tab: 'menu' | 'orders' | 'profile') => {
+    setActiveTab(tab);
+    setSelectedOrderId(null);
+  };
 
   const handleBottomNav = (tab: BottomTab) => {
-    if (tab === 'menu' || tab === 'profile') {
-      setActiveTab(tab);
+    if (tab === 'menu' || tab === 'orders' || tab === 'profile') {
+      selectTab(tab);
     }
   };
 
@@ -73,7 +83,7 @@ const EmployeePortal = () => {
             styles.topTabButton,
             activeTopTab === 'menu' && styles.activeTopTabButton,
           ]}
-          onPress={() => setActiveTab('menu')}
+          onPress={() => selectTab('menu')}
           activeOpacity={0.8}
         >
           <Text
@@ -82,7 +92,25 @@ const EmployeePortal = () => {
               activeTopTab === 'menu' && styles.activeTopTabText,
             ]}
           >
-            📋 Canteen Menu
+            📋 Menu
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.topTabButton,
+            activeTopTab === 'orders' && styles.activeTopTabButton,
+          ]}
+          onPress={() => selectTab('orders')}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={[
+              styles.topTabText,
+              activeTopTab === 'orders' && styles.activeTopTabText,
+            ]}
+          >
+            🧾 Orders
           </Text>
         </TouchableOpacity>
 
@@ -91,7 +119,7 @@ const EmployeePortal = () => {
             styles.topTabButton,
             activeTopTab === 'profile' && styles.activeTopTabButton,
           ]}
-          onPress={() => setActiveTab('profile')}
+          onPress={() => selectTab('profile')}
           activeOpacity={0.8}
         >
           <Text
@@ -107,7 +135,18 @@ const EmployeePortal = () => {
 
       {/* Dynamic View Injection Layer */}
       <View style={styles.mainContent}>
-        {activeTopTab === 'profile' ? <ProfileScreen /> : <MenuScreen />}
+        {selectedOrderId !== null ? (
+          <OrderDetailsScreen
+            orderId={selectedOrderId}
+            onBack={() => setSelectedOrderId(null)}
+          />
+        ) : activeTopTab === 'orders' ? (
+          <MyOrdersScreen onOpenOrder={setSelectedOrderId} />
+        ) : activeTopTab === 'profile' ? (
+          <ProfileScreen />
+        ) : (
+          <MenuScreen />
+        )}
       </View>
 
       <BottomNav
@@ -143,7 +182,7 @@ export default function App() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-          <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+          <StatusBar barStyle="dark-content" />
           <NavigationHub />
         </SafeAreaView>
       </QueryClientProvider>

@@ -81,7 +81,7 @@ npm run tunnel
 This executes:
 
 ```bash
-adb reverse tcp:5000 tcp:5000
+`adb reverse tcp:5000 tcp:5000`
 ```
 
 Verify:

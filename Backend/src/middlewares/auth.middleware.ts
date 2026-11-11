@@ -43,7 +43,10 @@ export const requireAuth = (
 
     next();
   } catch (error) {
-    console.error("🔒 JWT Verification Error:", error.message);
+    console.error(
+      "🔒 JWT Verification Error:",
+      error instanceof Error ? error.message : error,
+    );
     res.status(401).json({
       success: false,
       message: "Invalid or expired authorization token.",
