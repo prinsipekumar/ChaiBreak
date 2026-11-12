@@ -1,6 +1,0 @@
-{
-  "name": "ChaiBreak Cafeteria",
-  "description": "Smart corporate cafeteria ordering app with instant category filters, real-time stock availability, veg-only toggle, and kitchen management.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

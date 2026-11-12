@@ -1,69 +1,33 @@
 import { create } from 'zustand';
-
-export interface UserProfile {
-  name: string;
-  email: string;
-  empId: string;
-  desk: string;
-  department: string;
-}
-
-const defaultUser: UserProfile = {
-  name: 'Aarav Patel',
-  email: 'aarav.patel@company.com',
-  empId: 'CB-41208',
-  desk: 'DLF CyberCity Tower B, 4th Floor',
-  department: 'Engineering',
-};
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AuthState {
-  isAuthenticated: boolean;
-  user: UserProfile | null;
-  login: () => void;
+  token: string | null;
+  user: { id: number; phone: string; name: string; role: string } | null;
+  isRestoringToken: boolean; //track initialization
+  setAuth: (token: string, user: any) => void;
   logout: () => void;
-  toggleAuth: () => void;
+  setRestoringComplete: () => void; //clear the loading state
 }
 
-const STORAGE_KEY = 'chaibreak_auth_state';
-
-const getInitialAuthState = (): { isAuthenticated: boolean; user: UserProfile | null } => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        isAuthenticated: parsed.isAuthenticated ?? true,
-        user: parsed.user ?? defaultUser,
-      };
-    }
-  } catch (e) {
-    console.warn('Failed to load auth from storage', e);
-  }
-  return { isAuthenticated: true, user: defaultUser };
-};
-
-export const useAuthStore = create<AuthState>((set, get) => ({
-  ...getInitialAuthState(),
-
-  login: () => {
-    const state = { isAuthenticated: true, user: defaultUser };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    set(state);
-  },
-
-  logout: () => {
-    const state = { isAuthenticated: false, user: null };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    set(state);
-  },
-
-  toggleAuth: () => {
-    const nextAuth = !get().isAuthenticated;
-    const state = {
-      isAuthenticated: nextAuth,
-      user: nextAuth ? defaultUser : null,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    set(state);
-  },
-}));
+export const useAuthStore = create<AuthState>()(
+  persist(
+    set => ({
+      token: null,
+      user: null,
+      isRestoringToken: true, // Starts as true when the app boots up
+      setAuth: (token, user) => set({ token, user, isRestoringToken: false }),
+      logout: () => set({ token: null, user: null, isRestoringToken: false }),
+      setRestoringComplete: () => set({ isRestoringToken: false }),
+    }),
+    {
+      name: 'auth-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      // This function executes automatically as soon as AsyncStorage finishes loading
+      onRehydrateStorage: () => state => {
+        state?.setRestoringComplete();
+      },
+    },
+  ),
+);
