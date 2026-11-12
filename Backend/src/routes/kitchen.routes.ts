@@ -3,6 +3,7 @@ import { body, param, query, validationResult } from "express-validator";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware";
 import { uploadItemPhoto } from "../middlewares/upload.middleware";
 import {
+  listKitchenItems,
   listKitchenOrders,
   pickupOrder,
   updateKitchenItem,
@@ -73,6 +74,8 @@ router.post(
 );
 
 // ---------- menu control ----------
+
+router.get("/items", listKitchenItems);
 
 router.patch(
   "/items/:id",

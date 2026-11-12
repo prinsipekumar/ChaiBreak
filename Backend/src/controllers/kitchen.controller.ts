@@ -232,6 +232,35 @@ const toItemResponse = (row: RowDataPacket) => ({
   photoUrl: row.photo_url,
 });
 
+// GET /api/v1/kitchen/items
+// Every menu item with its stock and availability, grouped by category order.
+export const listKitchenItems = async (
+  _req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const [rows] = await db.query<RowDataPacket[]>(
+      `SELECT i.id, i.name, c.name AS category, i.price_rupees,
+              i.stock_left, i.is_available, i.photo_url
+         FROM items i
+         JOIN categories c ON c.id = i.category_id
+        ORDER BY c.sort_order ASC, i.name ASC`,
+    );
+
+    res.status(200).json({
+      success: true,
+      data: rows.map((row) => ({
+        ...toItemResponse(row),
+        category: row.category,
+        priceRupees: Number(row.price_rupees),
+      })),
+    });
+  } catch (error) {
+    console.error("Kitchen list items error:", error);
+    res.status(500).json({ success: false, message: "Failed to load items." });
+  }
+};
+
 // PATCH /api/v1/kitchen/items/:id   { "isAvailable": false, "stockLeft": 0 }
 export const updateKitchenItem = async (
   req: AuthenticatedRequest,
