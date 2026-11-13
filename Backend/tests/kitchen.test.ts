@@ -136,6 +136,7 @@ describe("kitchen access control", () => {
     ["get", "/orders"],
     ["patch", "/orders/1/status"],
     ["post", "/orders/1/pickup"],
+    ["get", "/items"],
     ["patch", "/items/1"],
     ["post", "/items/1/photo"],
   ];
@@ -321,6 +322,26 @@ describe("POST /kitchen/orders/:id/pickup", () => {
 });
 
 // ---------- menu control ----------
+
+describe("GET /kitchen/items", () => {
+  it("lists items with category, price, stock and availability", async () => {
+    const res = await request(app).get(`${BASE}/items`).set(auth(kitchenToken));
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    const item = res.body.data.find((i: { id: number }) => i.id === itemId);
+    expect(item).toEqual(
+      expect.objectContaining({
+        name: "__test_item__",
+        category: "__test_category__",
+        priceRupees: 15,
+        stockLeft: expect.any(Number),
+        isAvailable: expect.any(Boolean),
+      }),
+    );
+  });
+});
 
 describe("PATCH /kitchen/items/:id", () => {
   it("updates availability and stock", async () => {
