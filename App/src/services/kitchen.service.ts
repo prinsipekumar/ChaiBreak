@@ -101,16 +101,37 @@ export interface PickedPhoto {
 export const photoUrlFor = (photoUrl: string | null): string | null =>
   photoUrl ? `${API_URL.replace(/\/api\/v1$/, '')}${photoUrl}` : null;
 
+// export const uploadItemPhoto = async (itemId: number, photo: PickedPhoto) => {
+//   const form = new FormData();
+//   // React Native sends this { uri, name, type } object as a file part.
+//   form.append('photo', photo as unknown as Blob);
+
+//   const response = await kitchenApi.post(`/items/${itemId}/photo`, form, {
+//     headers: { 'Content-Type': 'multipart/form-data' },
+//     timeout: 30000,
+//   });
+//   return response.data.data as { id: number; photoUrl: string };
+// };
 export const uploadItemPhoto = async (itemId: number, photo: PickedPhoto) => {
   const form = new FormData();
-  // React Native sends this { uri, name, type } object as a file part.
   form.append('photo', photo as unknown as Blob);
 
-  const response = await kitchenApi.post(`/items/${itemId}/photo`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 30000,
+  // fetch (not axios): React Native sets the multipart boundary itself.
+  const token = useAuthStore.getState().token;
+  const response = await fetch(`${API_URL}/kitchen/items/${itemId}/photo`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
   });
-  return response.data.data as { id: number; photoUrl: string };
+
+  const json = await response.json().catch(() => null);
+  if (response.status === 401) {
+    useAuthStore.getState().logout();
+  }
+  if (!response.ok) {
+    throw new Error(json?.message ?? 'Could not upload photo.');
+  }
+  return json.data as { id: number; photoUrl: string };
 };
 
 // Turns an axios/network error into a message that is fine to show in an Alert.
