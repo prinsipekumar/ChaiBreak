@@ -1,7 +1,11 @@
 import { NextFunction, Request, Response, Router } from "express";
-import { query, validationResult } from "express-validator";
+import { body, param, query, validationResult } from "express-validator";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware";
-import { listKitchenOrders } from "../controllers/kitchen.controller";
+import {
+  listKitchenOrders,
+  pickupOrder,
+  updateOrderStatus,
+} from "../controllers/kitchen.controller";
 
 const router = Router();
 
@@ -19,6 +23,12 @@ const validate = (req: Request, res: Response, next: NextFunction): void => {
   next();
 };
 
+const ALL_STATUSES = ["placed", "preparing", "ready", "picked_up", "cancelled"];
+
+const idParam = param("id")
+  .isInt({ min: 1 })
+  .withMessage("id must be a positive integer");
+
 // ---------- orders ----------
 
 router.get(
@@ -34,6 +44,29 @@ router.get(
     .withMessage("limit must be between 1 and 100"),
   validate,
   listKitchenOrders,
+);
+
+// A valid status that is not the next step (e.g. placed -> picked_up) is a 409
+// from the controller; only an unknown value is rejected here with 400.
+router.patch(
+  "/orders/:id/status",
+  idParam,
+  body("to").isIn(ALL_STATUSES).withMessage("'to' must be a valid order status"),
+  validate,
+  updateOrderStatus,
+);
+
+router.post(
+  "/orders/:id/pickup",
+  idParam,
+  body("code")
+    .exists()
+    .withMessage("code is required")
+    .bail()
+    .matches(/^\d{4}$/)
+    .withMessage("Pickup code must be 4 digits"),
+  validate,
+  pickupOrder,
 );
 
 export default router;
