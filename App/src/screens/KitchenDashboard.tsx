@@ -3,9 +3,10 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import KitchenQueueScreen from './KitchenQueueScreen';
 import KitchenPickupScreen from './KitchenPickupScreen';
+import KitchenMenuScreen from './KitchenMenuScreen';
 import { useAuthStore } from '../store/authStore';
 
-type Tab = 'queue' | 'pickup';
+type Tab = 'queue' | 'pickup' | 'menu';
 
 export default function KitchenDashboard() {
   const logout = useAuthStore(state => state.logout);
@@ -37,6 +38,7 @@ export default function KitchenDashboard() {
           [
             { key: 'queue', label: '📋 Orders' },
             { key: 'pickup', label: '✅ Pickup' },
+            { key: 'menu', label: '🍽 Menu' },
           ] as { key: Tab; label: string }[]
         ).map(item => (
           <TouchableOpacity
@@ -55,8 +57,10 @@ export default function KitchenDashboard() {
       <View style={styles.content}>
         {tab === 'queue' ? (
           <KitchenQueueScreen onPickup={goToPickup} />
-        ) : (
+        ) : tab === 'pickup' ? (
           <KitchenPickupScreen selectedId={pickupId} onSelect={setPickupId} />
+        ) : (
+          <KitchenMenuScreen />
         )}
       </View>
     </View>

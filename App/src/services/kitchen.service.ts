@@ -13,6 +13,16 @@ export interface KitchenOrder {
   items: { name: string; qty: number }[];
 }
 
+export interface KitchenItem {
+  id: number;
+  name: string;
+  category: string;
+  priceRupees: number;
+  stockLeft: number;
+  isAvailable: boolean;
+  photoUrl: string | null;
+}
+
 // Own axios instance for /kitchen routes: adds the Bearer token to every call
 // and logs the user out on a 401. (If F1 later adds this to the shared `api`
 // instance, this file can use `api` directly instead.)
@@ -61,6 +71,23 @@ export const advanceOrder = async (
 export const pickupOrder = async (orderId: number, code: string) => {
   const response = await kitchenApi.post(`/orders/${orderId}/pickup`, { code });
   return response.data.data as { id: number; status: string };
+};
+
+export const getKitchenItems = async (): Promise<KitchenItem[]> => {
+  const response = await kitchenApi.get('/items');
+  return response.data.data as KitchenItem[];
+};
+
+export const updateItem = async (
+  itemId: number,
+  changes: { isAvailable?: boolean; stockLeft?: number },
+) => {
+  const response = await kitchenApi.patch(`/items/${itemId}`, changes);
+  return response.data.data as {
+    id: number;
+    stockLeft: number;
+    isAvailable: boolean;
+  };
 };
 
 // Turns an axios/network error into a message that is fine to show in an Alert.
