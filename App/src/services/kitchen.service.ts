@@ -90,6 +90,39 @@ export const updateItem = async (
   };
 };
 
+export interface PickedPhoto {
+  uri: string;
+  name: string;
+  type: 'image/jpeg' | 'image/png';
+}
+
+// The server stores photo paths like /uploads/items/x.jpg (served from the
+// server root, not from /api/v1). Turn one into a full URL for <Image>.
+export const photoUrlFor = (photoUrl: string | null): string | null =>
+  photoUrl ? `${API_URL.replace(/\/api\/v1$/, '')}${photoUrl}` : null;
+
+export const uploadItemPhoto = async (itemId: number, photo: PickedPhoto) => {
+  const form = new FormData();
+  form.append('photo', photo as unknown as Blob);
+
+  // fetch (not axios): React Native sets the multipart boundary itself.
+  const token = useAuthStore.getState().token;
+  const response = await fetch(`${API_URL}/kitchen/items/${itemId}/photo`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
+  });
+
+  const json = await response.json().catch(() => null);
+  if (response.status === 401) {
+    useAuthStore.getState().logout();
+  }
+  if (!response.ok) {
+    throw new Error(json?.message ?? 'Could not upload photo.');
+  }
+  return json.data as { id: number; photoUrl: string };
+};
+
 // Turns an axios/network error into a message that is fine to show in an Alert.
 export const getErrorMessage = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
@@ -97,6 +130,9 @@ export const getErrorMessage = (error: unknown): string => {
       return error.response.data?.message ?? 'Something went wrong.';
     }
     return 'Could not reach the server. Check your connection.';
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
   }
   return 'Something went wrong.';
 };

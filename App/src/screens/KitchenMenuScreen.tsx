@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   StyleSheet,
   Switch,
   Text,
@@ -11,24 +12,30 @@ import {
   View,
 } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 import {
   getErrorMessage,
   getKitchenItems,
   KitchenItem,
+  photoUrlFor,
+  PickedPhoto,
   updateItem,
+  uploadItemPhoto,
 } from '../services/kitchen.service';
 
 const MAX_STOCK = 10000; // same limit the server enforces
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // server rejects photos over 2 MB
 
 type RowProps = {
   item: KitchenItem;
   saving: boolean;
   onToggle: (isAvailable: boolean) => void;
   onSaveStock: (stockLeft: number) => void;
+  onPickPhoto: () => void;
 };
 
-function ItemRow({ item, saving, onToggle, onSaveStock }: RowProps) {
+function ItemRow({ item, saving, onToggle, onSaveStock, onPickPhoto }: RowProps) {
   const [draft, setDraft] = useState(String(item.stockLeft));
 
   // When the server value changes (save or refresh), show it in the box.
@@ -40,15 +47,28 @@ function ItemRow({ item, saving, onToggle, onSaveStock }: RowProps) {
   const value = isWholeNumber ? Number(draft) : NaN;
   const valid = isWholeNumber && value <= MAX_STOCK;
   const changed = valid && value !== item.stockLeft;
+  const photoUri = photoUrlFor(item.photoUrl);
 
   return (
     <View style={styles.card}>
       <View style={styles.cardTop}>
+        {photoUri ? (
+          <Image source={{ uri: photoUri }} style={styles.thumb} />
+        ) : (
+          <View style={[styles.thumb, styles.thumbEmpty]}>
+            <Text style={styles.thumbIcon}>🍽</Text>
+          </View>
+        )}
         <View style={styles.cardInfo}>
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.meta}>
             {item.category} · ₹{item.priceRupees}
           </Text>
+          <TouchableOpacity onPress={onPickPhoto} disabled={saving} activeOpacity={0.8}>
+            <Text style={[styles.photoLink, saving && styles.photoLinkBusy]}>
+              {item.photoUrl ? '📷 Change photo' : '📷 Add photo'}
+            </Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.switchBox}>
           <Text style={[styles.switchLabel, !item.isAvailable && styles.off]}>
@@ -113,6 +133,52 @@ export default function KitchenMenuScreen() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['kitchenItems'] }),
   });
 
+  const upload = useMutation({
+    mutationFn: ({ id, photo }: { id: number; photo: PickedPhoto }) =>
+      uploadItemPhoto(id, photo),
+    onError: error => Alert.alert('Could not upload photo', getErrorMessage(error)),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['kitchenItems'] }),
+  });
+
+  const pickPhoto = async (itemId: number) => {
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      selectionLimit: 1,
+      // Shrinking on the phone keeps the upload well under the 2 MB limit.
+      maxWidth: 1280,
+      maxHeight: 1280,
+      quality: 0.8,
+    });
+
+    if (result.didCancel) {
+      return;
+    }
+    if (result.errorCode) {
+      Alert.alert('Could not open photos', result.errorMessage ?? 'Please try again.');
+      return;
+    }
+
+    const asset = result.assets?.[0];
+    if (!asset?.uri) {
+      return;
+    }
+    if (asset.fileSize && asset.fileSize > MAX_PHOTO_BYTES) {
+      Alert.alert('Photo too big', 'Please choose a photo under 2 MB.');
+      return;
+    }
+
+    // The server only accepts JPG or PNG, so name the file to match.
+    const isPng = asset.type === 'image/png';
+    upload.mutate({
+      id: itemId,
+      photo: {
+        uri: asset.uri,
+        name: `item-${itemId}.${isPng ? 'png' : 'jpg'}`,
+        type: isPng ? 'image/png' : 'image/jpeg',
+      },
+    });
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await refetch();
@@ -142,13 +208,17 @@ export default function KitchenMenuScreen() {
           renderItem={({ item }: { item: KitchenItem }) => (
             <ItemRow
               item={item}
-              saving={update.isPending && update.variables?.id === item.id}
+              saving={
+                (update.isPending && update.variables?.id === item.id) ||
+                (upload.isPending && upload.variables?.id === item.id)
+              }
               onToggle={isAvailable =>
                 update.mutate({ id: item.id, changes: { isAvailable } })
               }
               onSaveStock={stockLeft =>
                 update.mutate({ id: item.id, changes: { stockLeft } })
               }
+              onPickPhoto={() => pickPhoto(item.id)}
             />
           )}
           ListEmptyComponent={
@@ -189,6 +259,11 @@ const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardInfo: { flex: 1, paddingRight: 12 },
+  thumb: { width: 60, height: 60, borderRadius: 12, marginRight: 12 },
+  thumbEmpty: { backgroundColor: '#F1EBE5', alignItems: 'center', justifyContent: 'center' },
+  thumbIcon: { fontSize: 24 },
+  photoLink: { fontSize: 12, fontWeight: '700', color: '#6F4E37', marginTop: 6 },
+  photoLinkBusy: { color: '#B8ADA3' },
   name: { fontSize: 17, fontWeight: '800', color: '#2B2B2B' },
   meta: { fontSize: 13, color: '#8A8A8A', marginTop: 2, fontWeight: '500' },
   switchBox: { alignItems: 'center' },
