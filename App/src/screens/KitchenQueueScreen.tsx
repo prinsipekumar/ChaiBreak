@@ -33,9 +33,8 @@ const EMPTY_TEXT: Record<KitchenStatus, string> = {
 const REFRESH_MS = 10000; // spec: queue refreshes every 10 seconds
 
 type Props = {
-  // Ready -> picked_up needs the pickup code. The Pickup screen comes in a
-  // later PR; until then the Ready tab has no action button.
-  onPickup?: (orderId: number) => void;
+  // Ready -> picked_up needs the pickup code, so that button opens the Pickup tab.
+  onPickup: (orderId: number) => void;
 };
 
 export default function KitchenQueueScreen({ onPickup }: Props) {
@@ -78,7 +77,7 @@ export default function KitchenQueueScreen({ onPickup }: Props) {
         label: 'Mark ready',
         onPress: () => advance.mutate({ id: item.id, to: 'ready' }),
       };
-    } else if (onPickup) {
+    } else {
       button = { label: 'Enter pickup code', onPress: () => onPickup(item.id) };
     }
 
@@ -99,20 +98,18 @@ export default function KitchenQueueScreen({ onPickup }: Props) {
 
         {item.note ? <Text style={styles.note}>📝 {item.note}</Text> : null}
 
-        {button ? (
-          <TouchableOpacity
-            style={[styles.button, advance.isPending && styles.buttonDisabled]}
-            onPress={button.onPress}
-            disabled={advance.isPending}
-            activeOpacity={0.8}
-          >
-            {busy ? (
-              <ActivityIndicator color="#FFF" size="small" />
-            ) : (
-              <Text style={styles.buttonText}>{button.label}</Text>
-            )}
-          </TouchableOpacity>
-        ) : null}
+        <TouchableOpacity
+          style={[styles.button, advance.isPending && styles.buttonDisabled]}
+          onPress={button.onPress}
+          disabled={advance.isPending}
+          activeOpacity={0.8}
+        >
+          {busy ? (
+            <ActivityIndicator color="#FFF" size="small" />
+          ) : (
+            <Text style={styles.buttonText}>{button.label}</Text>
+          )}
+        </TouchableOpacity>
       </View>
     );
   };
