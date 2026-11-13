@@ -101,17 +101,6 @@ export interface PickedPhoto {
 export const photoUrlFor = (photoUrl: string | null): string | null =>
   photoUrl ? `${API_URL.replace(/\/api\/v1$/, '')}${photoUrl}` : null;
 
-// export const uploadItemPhoto = async (itemId: number, photo: PickedPhoto) => {
-//   const form = new FormData();
-//   // React Native sends this { uri, name, type } object as a file part.
-//   form.append('photo', photo as unknown as Blob);
-
-//   const response = await kitchenApi.post(`/items/${itemId}/photo`, form, {
-//     headers: { 'Content-Type': 'multipart/form-data' },
-//     timeout: 30000,
-//   });
-//   return response.data.data as { id: number; photoUrl: string };
-// };
 export const uploadItemPhoto = async (itemId: number, photo: PickedPhoto) => {
   const form = new FormData();
   form.append('photo', photo as unknown as Blob);
@@ -141,6 +130,9 @@ export const getErrorMessage = (error: unknown): string => {
       return error.response.data?.message ?? 'Something went wrong.';
     }
     return 'Could not reach the server. Check your connection.';
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
   }
   return 'Something went wrong.';
 };
