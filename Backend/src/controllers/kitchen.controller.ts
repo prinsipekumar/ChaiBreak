@@ -1,3 +1,4 @@
+import fs from "fs";
 import { Response } from "express";
 import { RowDataPacket } from "mysql2";
 import { db } from "../config/db";
@@ -217,5 +218,116 @@ export const pickupOrder = async (
     }
   } finally {
     connection.release();
+  }
+};
+
+const ITEM_COLUMNS =
+  "id, name, stock_left, is_available, photo_url";
+
+const toItemResponse = (row: RowDataPacket) => ({
+  id: row.id,
+  name: row.name,
+  stockLeft: row.stock_left,
+  isAvailable: Boolean(row.is_available),
+  photoUrl: row.photo_url,
+});
+
+// PATCH /api/v1/kitchen/items/:id   { "isAvailable": false, "stockLeft": 0 }
+export const updateKitchenItem = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  const itemId = Number(req.params.id);
+  const { isAvailable, stockLeft } = req.body;
+
+  const sets: string[] = [];
+  const values: number[] = [];
+
+  if (isAvailable !== undefined) {
+    sets.push("is_available = ?");
+    values.push(isAvailable ? 1 : 0);
+  }
+  if (stockLeft !== undefined) {
+    sets.push("stock_left = ?");
+    values.push(Number(stockLeft));
+  }
+
+  if (sets.length === 0) {
+    res.status(400).json({
+      success: false,
+      message: "Send at least one of isAvailable or stockLeft.",
+    });
+    return;
+  }
+
+  try {
+    const [existing] = await db.query<RowDataPacket[]>(
+      "SELECT id FROM items WHERE id = ?",
+      [itemId],
+    );
+    if (existing.length === 0) {
+      res.status(404).json({ success: false, message: "Item not found." });
+      return;
+    }
+
+    await db.query(`UPDATE items SET ${sets.join(", ")} WHERE id = ?`, [
+      ...values,
+      itemId,
+    ]);
+
+    const [rows] = await db.query<RowDataPacket[]>(
+      `SELECT ${ITEM_COLUMNS} FROM items WHERE id = ?`,
+      [itemId],
+    );
+
+    res.status(200).json({ success: true, data: toItemResponse(rows[0]) });
+  } catch (error) {
+    console.error("Kitchen update item error:", error);
+    res.status(500).json({ success: false, message: "Failed to update item." });
+  }
+};
+
+const removeFile = (filePath: string): void => {
+  fs.promises.unlink(filePath).catch(() => undefined);
+};
+
+// POST /api/v1/kitchen/items/:id/photo   (multipart, field name "photo")
+export const uploadKitchenItemPhoto = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  const itemId = Number(req.params.id);
+  const file = req.file;
+
+  if (!file) {
+    res.status(400).json({
+      success: false,
+      message: "No photo uploaded. Send a JPG or PNG in the 'photo' field.",
+    });
+    return;
+  }
+
+  try {
+    const [existing] = await db.query<RowDataPacket[]>(
+      "SELECT id FROM items WHERE id = ?",
+      [itemId],
+    );
+    if (existing.length === 0) {
+      removeFile(file.path);
+      res.status(404).json({ success: false, message: "Item not found." });
+      return;
+    }
+
+    const photoUrl = `/uploads/items/${file.filename}`;
+    await db.query("UPDATE items SET photo_url = ? WHERE id = ?", [
+      photoUrl,
+      itemId,
+    ]);
+
+    res.status(200).json({ success: true, data: { id: itemId, photoUrl } });
+  } catch (error) {
+    removeFile(file.path);
+    console.error("Kitchen item photo error:", error);
+    res.status(500).json({ success: false, message: "Failed to save photo." });
   }
 };

@@ -1,8 +1,11 @@
+import fs from "fs";
+import path from "path";
 import request from "supertest";
 import jwt from "jsonwebtoken";
 import { ResultSetHeader, RowDataPacket } from "mysql2";
 import app from "../src/app";
 import { db } from "../src/config/db";
+import { UPLOAD_ROOT } from "../src/middlewares/upload.middleware";
 
 const BASE = "/api/v1/kitchen";
 
@@ -133,6 +136,8 @@ describe("kitchen access control", () => {
     ["get", "/orders"],
     ["patch", "/orders/1/status"],
     ["post", "/orders/1/pickup"],
+    ["patch", "/items/1"],
+    ["post", "/items/1/photo"],
   ];
 
   it.each(routes)("returns 403 for an employee token on %s %s", async (method, p) => {
@@ -312,5 +317,100 @@ describe("POST /kitchen/orders/:id/pickup", () => {
       .send({ code: "12" });
 
     expect(res.status).toBe(400);
+  });
+});
+
+// ---------- menu control ----------
+
+describe("PATCH /kitchen/items/:id", () => {
+  it("updates availability and stock", async () => {
+    const res = await request(app)
+      .patch(`${BASE}/items/${itemId}`)
+      .set(auth(kitchenToken))
+      .send({ isAvailable: false, stockLeft: 0 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual(
+      expect.objectContaining({ id: itemId, isAvailable: false, stockLeft: 0 }),
+    );
+
+    const [rows] = await db.query<RowDataPacket[]>(
+      "SELECT stock_left, is_available FROM items WHERE id = ?",
+      [itemId],
+    );
+    expect(rows[0].stock_left).toBe(0);
+    expect(rows[0].is_available).toBe(0);
+  });
+
+  it("rejects negative stock, an empty body and an unknown item", async () => {
+    const negative = await request(app)
+      .patch(`${BASE}/items/${itemId}`)
+      .set(auth(kitchenToken))
+      .send({ stockLeft: -5 });
+    expect(negative.status).toBe(400);
+
+    const empty = await request(app)
+      .patch(`${BASE}/items/${itemId}`)
+      .set(auth(kitchenToken))
+      .send({});
+    expect(empty.status).toBe(400);
+
+    const missing = await request(app)
+      .patch(`${BASE}/items/999999999`)
+      .set(auth(kitchenToken))
+      .send({ stockLeft: 5 });
+    expect(missing.status).toBe(404);
+  });
+});
+
+describe("POST /kitchen/items/:id/photo", () => {
+  it("rejects a file bigger than 2 MB", async () => {
+    const res = await request(app)
+      .post(`${BASE}/items/${itemId}/photo`)
+      .set(auth(kitchenToken))
+      .attach("photo", Buffer.alloc(3 * 1024 * 1024), {
+        filename: "big.jpg",
+        contentType: "image/jpeg",
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/2 MB/);
+  });
+
+  it("rejects a PDF", async () => {
+    const res = await request(app)
+      .post(`${BASE}/items/${itemId}/photo`)
+      .set(auth(kitchenToken))
+      .attach("photo", Buffer.alloc(1000), {
+        filename: "menu.pdf",
+        contentType: "application/pdf",
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/JPG or PNG/);
+  });
+
+  it("saves a small PNG and stores its URL on the item", async () => {
+    const res = await request(app)
+      .post(`${BASE}/items/${itemId}/photo`)
+      .set(auth(kitchenToken))
+      .attach("photo", Buffer.alloc(1000), {
+        filename: "chai.png",
+        contentType: "image/png",
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.photoUrl).toMatch(/^\/uploads\/items\/item-\d+-\d+\.png$/);
+
+    const [rows] = await db.query<RowDataPacket[]>(
+      "SELECT photo_url FROM items WHERE id = ?",
+      [itemId],
+    );
+    expect(rows[0].photo_url).toBe(res.body.data.photoUrl);
+
+    // remove the file this test just saved
+    fs.unlinkSync(
+      path.join(UPLOAD_ROOT, "items", path.basename(res.body.data.photoUrl)),
+    );
   });
 });

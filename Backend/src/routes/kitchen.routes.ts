@@ -1,10 +1,13 @@
 import { NextFunction, Request, Response, Router } from "express";
 import { body, param, query, validationResult } from "express-validator";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware";
+import { uploadItemPhoto } from "../middlewares/upload.middleware";
 import {
   listKitchenOrders,
   pickupOrder,
+  updateKitchenItem,
   updateOrderStatus,
+  uploadKitchenItemPhoto,
 } from "../controllers/kitchen.controller";
 
 const router = Router();
@@ -67,6 +70,35 @@ router.post(
     .withMessage("Pickup code must be 4 digits"),
   validate,
   pickupOrder,
+);
+
+// ---------- menu control ----------
+
+router.patch(
+  "/items/:id",
+  idParam,
+  body("isAvailable")
+    .optional()
+    .isBoolean()
+    .withMessage("isAvailable must be true or false")
+    .bail()
+    .toBoolean(),
+  body("stockLeft")
+    .optional()
+    .isInt({ min: 0, max: 10000 })
+    .withMessage("stockLeft must be a whole number from 0 to 10000")
+    .bail()
+    .toInt(),
+  validate,
+  updateKitchenItem,
+);
+
+router.post(
+  "/items/:id/photo",
+  idParam,
+  validate,
+  uploadItemPhoto,
+  uploadKitchenItemPhoto,
 );
 
 export default router;
