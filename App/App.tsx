@@ -16,6 +16,7 @@ import BottomNav, {
 import LoginScreen from './src/screens/LoginScreen';
 import MenuScreen from './src/screens/MenuScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import KitchenDashboard from './src/screens/KitchenDashboard';
 import { useAuthStore } from './src/store/authStore';
 
 // Initialize QueryClient with standard configuration settings
@@ -26,28 +27,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-const KitchenDashboard = () => {
-  const logout = useAuthStore(state => state.logout);
-  const user = useAuthStore(state => state.user);
-
-  return (
-    <View style={styles.kitchenContainer}>
-      <Text style={styles.kitchenIcon}>🍳</Text>
-      <Text style={styles.kitchenTitle}>Kitchen Orders Dashboard</Text>
-      <Text style={styles.kitchenSub}>
-        Staff Operator Panel ({user?.phone})
-      </Text>
-      <TouchableOpacity
-        style={styles.kitchenLogoutBtn}
-        onPress={logout}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.kitchenLogoutText}>Sign Out Account</Text>
-      </TouchableOpacity>
-    </View>
-  );
-};
 
 const EmployeePortal = () => {
   const [activeTopTab, setActiveTab] = useState<'menu' | 'profile'>('menu');
@@ -143,7 +122,7 @@ export default function App() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-          <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+          <StatusBar barStyle="dark-content" />
           <NavigationHub />
         </SafeAreaView>
       </QueryClientProvider>
